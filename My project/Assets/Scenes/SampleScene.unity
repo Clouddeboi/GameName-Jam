@@ -766,6 +766,7 @@ MonoBehaviour:
   baseMoveSpeed: 5
   verticalSpeed: 5
   sizeSlowFactor: 0.05
+  cameraTransform: {fileID: 330585546}
 --- !u!143 &854220814
 CharacterController:
   m_ObjectHideFlags: 0

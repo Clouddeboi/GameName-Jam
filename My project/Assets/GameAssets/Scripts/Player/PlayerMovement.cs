@@ -6,12 +6,16 @@ public class SimplePlayerMovement : MonoBehaviour
     public float baseMoveSpeed = 5f;
     public float verticalSpeed = 5f;
     public float sizeSlowFactor = 0.05f;
+    public Transform cameraTransform;
 
     private CharacterController controller;
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
+
+        if (!cameraTransform)
+            cameraTransform = Camera.main.transform;
     }
 
     void Update()
@@ -19,7 +23,17 @@ public class SimplePlayerMovement : MonoBehaviour
         float horizontal = Input.GetAxis("Horizontal");
         float vertical = Input.GetAxis("Vertical");
 
-        Vector3 move = new Vector3(horizontal, 0f, vertical);
+        //Camera relative directions (ignores vertical tilt)
+        Vector3 forward = cameraTransform.forward;
+        Vector3 right = cameraTransform.right;
+
+        forward.y = 0f;
+        right.y = 0f;
+
+        forward.Normalize();
+        right.Normalize();
+
+        Vector3 move = forward * vertical + right * horizontal;
 
         float upDown = 0f;
         if (Input.GetKey(KeyCode.Q)) upDown = -1f;
