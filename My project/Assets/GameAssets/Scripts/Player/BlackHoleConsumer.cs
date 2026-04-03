@@ -1,8 +1,18 @@
+using System;
 using UnityEngine;
 
 [RequireComponent(typeof(SphereCollider))]
 public class BlackHoleConsumer : MonoBehaviour
 {
+    public struct ConsumedObjectData
+    {
+        public string name;
+        public string tag;
+        public int layer;
+    }
+
+    public static event Action<ConsumedObjectData> ObjectConsumed;
+
     [Header("References")]
     public Transform blackHoleScaleTarget;
     public SphereCollider consumptionCollider;
@@ -97,10 +107,19 @@ public class BlackHoleConsumer : MonoBehaviour
 
     void Consume(GameObject targetObject, float objectSize)
     {
+        ConsumedObjectData consumedData = new ConsumedObjectData
+        {
+            name = targetObject.name,
+            tag = targetObject.tag,
+            layer = targetObject.layer
+        };
+
         if (targetObject.TryGetComponent(out Rigidbody rb))
             rb.linearVelocity = Vector3.zero;
 
         Destroy(targetObject);
+
+        ObjectConsumed?.Invoke(consumedData);
 
         float growthAmount = objectSize * blackHoleGrowthPerSize;
         blackHoleScaleTarget.localScale += Vector3.one * growthAmount;
