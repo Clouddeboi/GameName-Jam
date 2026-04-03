@@ -2,9 +2,14 @@ Shader "Custom/BlackholeEffect"
 {
     Properties
     {
+        [Header(Dimensions)]
         _EventHorizon ("Black Center Size", Range(0, 1)) = 0.5
         _DistortionRange ("Distortion Softness", Range(0, 1)) = 0.2
         _Strength ("Warp Strength", Range(0, 20)) = 5.0
+
+        [Header(Accretion Disk)]
+        _PhotonRingColor ("Photon Ring Color", Color) = (1, 0.4, 0.1, 1)
+        _PhotonRingWidth ("Photon Ring Width", Range(0, 0.5)) = 0.15
     }
 
     SubShader
@@ -29,16 +34,14 @@ Shader "Custom/BlackholeEffect"
                 float4 objScreenPos : TEXCOORD1;
             };
 
-            float _EventHorizon;
-            float _DistortionRange;
-            float _Strength;
+            float _EventHorizon, _DistortionRange, _Strength;
+            float4 _PhotonRingColor;
+            float _PhotonRingWidth;
 
             Varyings vert (Attributes v) {
                 Varyings o;
                 o.positionHCS = TransformObjectToHClip(v.positionOS.xyz);
                 o.screenPos = ComputeScreenPos(o.positionHCS);
-                
-                // Get the center of the object in screen space
                 float3 worldPos = TransformObjectToWorld(float3(0,0,0));
                 o.objScreenPos = ComputeScreenPos(TransformWorldToHClip(worldPos));
                 return o;
@@ -48,7 +51,6 @@ Shader "Custom/BlackholeEffect"
                 float2 uv = i.screenPos.xy / i.screenPos.w;
                 float2 centerUV = i.objScreenPos.xy / i.objScreenPos.w;
 
-                //Distance calculation with aspect ratio correction
                 float aspect = _ScreenParams.x / _ScreenParams.y;
                 float2 dir = uv - centerUV;
                 dir.x *= aspect;
@@ -62,23 +64,31 @@ Shader "Custom/BlackholeEffect"
                     return half4(0, 0, 0, 1);
                 }
 
-                //Warping and distortion calculations
-                //Smoothstep creates the 'ring' area where distortion happens
-                float mask = smoothstep(1.5, _EventHorizon, dist);
+                //Creates a ring that starts at the horizon and fades out
+                float photonRingOuter = _EventHorizon + _PhotonRingWidth;
+                float photonRingMask = smoothstep(photonRingOuter, _EventHorizon, dist);
                 
-                //Warp power
+                //Subtle swirl texture for the disk
+                float angle = atan2(dir.y, dir.x);
+                float swirl = sin(angle * 8.0 + _Time.y * 2.0) * 0.1 + 0.9;
+                half3 photonRingGlow = _PhotonRingColor.rgb * photonRingMask * swirl * _PhotonRingColor.a;
+
+                //Warp
+                float mask = smoothstep(1.5, _EventHorizon, dist);
                 float warpAmount = (_Strength * 0.01) / (dist - _EventHorizon + 0.05);
-                warpAmount = clamp(warpAmount, 0, 0.1); // Prevent the pixelated 'bites'
+                warpAmount = clamp(warpAmount, 0, 0.1);
 
                 float2 warpedUV = uv - (normalize(dir) * warpAmount * mask);
                 
-                //Final background sample
+                //Sample background
                 half3 sceneColor = SampleSceneColor(warpedUV);
 
-                //Softer inner edges
                 float edgeDarkening = smoothstep(_EventHorizon, _EventHorizon + _DistortionRange, dist);
                 
-                return half4(sceneColor * edgeDarkening, 1.0);
+                //Apply darkening to the scene, then add the disk glow on top
+                half3 finalColor = (sceneColor * edgeDarkening) + photonRingGlow;
+                
+                return half4(finalColor, 1.0);
             }
             ENDHLSL
         }
