@@ -9,10 +9,12 @@ public class SimplePlayerMovement : MonoBehaviour
     public Transform cameraTransform;
 
     private CharacterController controller;
+    public PlayerStateManager stateManager;
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
+        stateManager.SetState(PlayerState.Default);
 
         if (!cameraTransform)
             cameraTransform = Camera.main.transform;
